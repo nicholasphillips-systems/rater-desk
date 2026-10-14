@@ -237,7 +237,7 @@ class MainWindow(QMainWindow):
         self._long_warned = False
 
     def _check_long_session(self):
-        current = self.store.get_open_sessions()
+        current = self.store.recover_sessions()
         if current:
             session = current[0]
             duration = hours_between(session['started_at'], None)
