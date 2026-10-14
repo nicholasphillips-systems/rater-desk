@@ -79,6 +79,7 @@ class ReportsScreen(QWidget):
             ["Platform", "Status", "Last activity"]
         )
         self.idle_table.verticalHeader().setVisible(False)
+        self.idle_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.idle_table.setMinimumHeight(150)
         layout.addWidget(self.idle_table)
 
@@ -93,6 +94,7 @@ class ReportsScreen(QWidget):
             ["Platform", "Task", "Due"]
         )
         self.deadlines_table.verticalHeader().setVisible(False)
+        self.deadlines_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.deadlines_table.setMinimumHeight(150)
         layout.addWidget(self.deadlines_table)
 

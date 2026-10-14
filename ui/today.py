@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QFrame, QTableWidget, QTableWidgetItem, QSizePolicy,
+    QFrame, QTableWidget, QTableWidgetItem, QSizePolicy, QHeaderView,
     QMessageBox, QDialog, QComboBox, QSpinBox
 )
 from PyQt6.QtCore import Qt, QTimer, QDateTime, pyqtSignal
@@ -284,9 +284,10 @@ class TodayScreen(QWidget):
         layout.addWidget(blocks_label)
 
         self.blocks_table = QTableWidget()
-        self.blocks_table.setColumnCount(3)
-        self.blocks_table.setHorizontalHeaderLabels(["Time", "Platform", "Project"])
+        self.blocks_table.setColumnCount(4)
+        self.blocks_table.setHorizontalHeaderLabels(["Time", "Block", "Platform", "Project"])
         self.blocks_table.verticalHeader().setVisible(False)
+        self.blocks_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.blocks_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.blocks_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.blocks_table.setMinimumHeight(120)
@@ -301,6 +302,7 @@ class TodayScreen(QWidget):
         self.tasks_table.setColumnCount(4)
         self.tasks_table.setHorizontalHeaderLabels(["Platform", "Task", "Human-only", "Due"])
         self.tasks_table.verticalHeader().setVisible(False)
+        self.tasks_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.tasks_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.tasks_table.setMinimumHeight(120)
         layout.addWidget(self.tasks_table)
@@ -353,20 +355,21 @@ class TodayScreen(QWidget):
         self.blocks_table.setRowCount(len(blocks))
         for i, block in enumerate(blocks):
             self.blocks_table.setItem(i, 0, QTableWidgetItem(
-                f"{block['starts_at']} - {block['ends_at']}"
+                f"{clock(block['starts_at'])}–{clock(block['ends_at'])}"
             ))
+            self.blocks_table.setItem(i, 1, QTableWidgetItem(block['title'] or ""))
             plat_name = ""
             if block['platform_id']:
                 plat = self.store.get_platform(block['platform_id'])
                 if plat:
                     plat_name = plat['name']
-            self.blocks_table.setItem(i, 1, QTableWidgetItem(plat_name))
+            self.blocks_table.setItem(i, 2, QTableWidgetItem(plat_name))
             proj_name = ""
             if block['project_id']:
                 proj = self.store.get_project(block['project_id'])
                 if proj:
                     proj_name = proj['name']
-            self.blocks_table.setItem(i, 2, QTableWidgetItem(proj_name))
+            self.blocks_table.setItem(i, 3, QTableWidgetItem(proj_name))
 
     def _refresh_tasks(self):
         today = today_utc()
@@ -420,3 +423,11 @@ def _week_start_iso(date_str):
     dt = datetime.date.fromisoformat(d)
     monday = dt - datetime.timedelta(days=dt.weekday())
     return monday.isoformat()
+
+
+def clock(iso):
+    """'2026-10-14T09:00:00' -> '09:00'; anything unparseable comes back as it was."""
+    try:
+        return datetime.datetime.fromisoformat(iso).strftime("%H:%M")
+    except (TypeError, ValueError):
+        return iso or ""

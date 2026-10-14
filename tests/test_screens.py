@@ -68,5 +68,14 @@ class TestScreens(unittest.TestCase):
         self.assertEqual(shown[0], plat['name'])
 
 
+class TestTodayBlocks(unittest.TestCase):
+    def test_block_times_show_as_hours(self):
+        from ui.today import clock
+        self.assertEqual(clock("2026-10-14T09:00:00"), "09:00")
+        self.assertEqual(clock("2026-10-14T17:30:00+00:00"), "17:30")
+        self.assertEqual(clock("not a time"), "not a time")
+        self.assertEqual(clock(None), "")
+
+
 if __name__ == "__main__":
     unittest.main()
