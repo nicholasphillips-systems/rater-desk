@@ -36,6 +36,7 @@ class TestSchemaMigration(unittest.TestCase):
             self.assertEqual(version, SCHEMA_VERSION)
             conn.close()
         finally:
+            store.close()  # Windows can't delete a file that is still open
             os.unlink(db_path)
 
     def test_tables_exist(self):
@@ -51,6 +52,7 @@ class TestSchemaMigration(unittest.TestCase):
             self.assertTrue(expected.issubset(table_names))
             conn.close()
         finally:
+            store.close()
             os.unlink(db_path)
 
 

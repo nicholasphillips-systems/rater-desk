@@ -131,7 +131,10 @@ class TestFirstRun(unittest.TestCase):
 class TestAutostart(unittest.TestCase):
     def test_from_source_launches_main_py_minimized(self):
         cmd = autostart.launch_command()
-        self.assertEqual(cmd[0], sys.executable)
+        python = Path(sys.executable)
+        if paths.IS_WINDOWS and python.with_name("pythonw.exe").exists():
+            python = python.with_name("pythonw.exe")  # no console window at login
+        self.assertEqual(cmd[0], str(python))
         self.assertEqual(cmd[1:], [str(Path(PROJECT_ROOT).resolve() / "main.py"),
                                    "--start-minimized"])
 
