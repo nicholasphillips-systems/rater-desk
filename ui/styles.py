@@ -130,6 +130,14 @@ QTableWidget, QTreeWidget {
     gridline-color: #374151;
 }
 
+QListWidget {
+    background-color: #25262b;
+    border: 1px solid #4B5563;
+    border-radius: 6px;
+    color: #e2e8f0;
+    padding: 4px;
+}
+
 QHeaderView::section {
     background-color: #374151;
     color: #9CA3AF;

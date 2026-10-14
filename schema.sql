@@ -88,3 +88,8 @@ CREATE TABLE settings (
     key             TEXT PRIMARY KEY,
     value           TEXT
 );
+
+-- v2 (auto mode) — see migrations.py
+-- work_sessions.source  'manual' | 'auto'
+-- platforms.match_words, platforms.email_domains  (NULL = use catalog.py)
+-- detections: what email detection found and what it changed

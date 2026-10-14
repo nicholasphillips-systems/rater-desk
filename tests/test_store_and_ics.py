@@ -26,14 +26,14 @@ def make_test_db():
 
 class TestSchemaMigration(unittest.TestCase):
     def test_schema_version(self):
-        self.assertEqual(SCHEMA_VERSION, 1)
+        self.assertEqual(SCHEMA_VERSION, 2)
 
     def test_schema_applied_on_open(self):
         db_path, store = make_test_db()
         try:
             conn = sqlite3.connect(db_path)
             version = get_schema_version(conn)
-            self.assertEqual(version, 1)
+            self.assertEqual(version, SCHEMA_VERSION)
             conn.close()
         finally:
             os.unlink(db_path)

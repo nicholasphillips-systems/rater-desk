@@ -3,11 +3,12 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QTabWidget,
-    QFormLayout, QTextEdit, QMessageBox, QDialog, QComboBox
+    QFormLayout, QTextEdit, QMessageBox, QDialog, QComboBox, QLineEdit
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QColor
 
+import catalog
 from store import Store, cents_to_str, today_utc
 from ui.styles import header_font, body_font, badge_style, STATUS_COLORS, STATUS_LABELS, SETUP_STATUS_LABELS
 
@@ -98,6 +99,7 @@ class PlatformDetail(QTabWidget):
         self.addTab(self._make_sessions_tab(), "Sessions")
         self.addTab(self._make_payouts_tab(), "Payouts")
         self.addTab(self._make_notes_tab(), "Notes")
+        self.addTab(self._make_auto_tab(), "Auto")
 
     def show_platform(self, platform_id):
         self._current_platform_id = platform_id
@@ -161,9 +163,9 @@ class PlatformDetail(QTabWidget):
         widget = QWidget()
         layout = QVBoxLayout(widget)
         self.sessions_table = QTableWidget()
-        self.sessions_table.setColumnCount(5)
+        self.sessions_table.setColumnCount(6)
         self.sessions_table.setHorizontalHeaderLabels(
-            ["Started", "Ended", "Hours", "Rate/hr", "Items"]
+            ["Started", "Ended", "Hours", "Rate/hr", "Items", "Started by"]
         )
         self.sessions_table.verticalHeader().setVisible(False)
         self.sessions_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -195,6 +197,47 @@ class PlatformDetail(QTabWidget):
         layout.addWidget(self.notes_edit)
         return widget
 
+    def _make_auto_tab(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        form = QFormLayout()
+        self.words_edit = QLineEdit()
+        form.addRow("Tab title words:", self.words_edit)
+        self.domains_edit = QLineEdit()
+        form.addRow("Email domains:", self.domains_edit)
+        layout.addLayout(form)
+        hint = QLabel("Comma-separated. The timer starts when a browser tab's title contains one of "
+                      "the words; email from these domains updates this platform. Leave a box empty "
+                      "to go back to the built-in list.")
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #6B7280; font-size: 11px;")
+        layout.addWidget(hint)
+        save = QPushButton("Save")
+        save.clicked.connect(self._save_auto_words)
+        layout.addWidget(save, 0, Qt.AlignmentFlag.AlignLeft)
+        layout.addStretch()
+        return widget
+
+    def _refresh_auto(self):
+        plat = self.store.get_platform(self._current_platform_id)
+        self.words_edit.setText(", ".join(catalog.window_words(plat)))
+        self.domains_edit.setText(", ".join(catalog.email_domains(plat)))
+
+    def _save_auto_words(self):
+        if not self._current_platform_id:
+            return
+        plat = self.store.get_platform(self._current_platform_id)
+        default = catalog.catalog_entry(plat['name'])
+        words = ", ".join(catalog.split_list(self.words_edit.text()))
+        domains = ", ".join(catalog.split_list(self.domains_edit.text()))
+        # Store NULL when it matches the built-in list, so catalog fixes still reach it.
+        if not words or (default and words == ", ".join(default[1])):
+            words = None
+        if not domains or (default and domains == ", ".join(default[2])):
+            domains = None
+        self.store.update_platform(plat['id'], match_words=words, email_domains=domains)
+        self._refresh_auto()
+
     def _refresh_all(self):
         if not self._current_platform_id:
             return
@@ -204,6 +247,7 @@ class PlatformDetail(QTabWidget):
         self._refresh_sessions()
         self._refresh_payouts()
         self._refresh_notes()
+        self._refresh_auto()
 
     def _refresh_overview(self):
         plat = self.store.get_platform(self._current_platform_id)
@@ -294,6 +338,9 @@ class PlatformDetail(QTabWidget):
             count = sess['item_count']
             self.sessions_table.setItem(i, 4, QTableWidgetItem(
                 str(count) if count is not None else "— (skipped)"
+            ))
+            self.sessions_table.setItem(i, 5, QTableWidgetItem(
+                "auto" if sess['source'] == 'auto' else "you"
             ))
 
     def _refresh_payouts(self):

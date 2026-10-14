@@ -2,3 +2,6 @@ PyQt6>=6.6; sys_platform != "win32"
 # Qt 6.10+ needs Windows' own ICU (icuuc.dll), which older Windows 10 builds and
 # Wine don't have. 6.9 is the newest Qt that runs on all of them.
 PyQt6>=6.9,<6.10; sys_platform == "win32"
+# Auto mode keeps Gmail app passwords in the system keyring (KDE Wallet /
+# GNOME Keyring / Windows Credential Manager), not in the database.
+keyring>=24

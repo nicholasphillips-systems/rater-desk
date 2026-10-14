@@ -77,6 +77,11 @@ class TimerCard(QFrame):
         self.note_label.setStyleSheet("color: #9CA3AF; font-size: 11px;")
         layout.addWidget(self.note_label)
 
+        self.auto_label = QLabel("")
+        self.auto_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.auto_label.setStyleSheet("color: #60A5FA; font-size: 11px;")
+        layout.addWidget(self.auto_label)
+
         self._refresh_selector()
 
     def _make_combo(self):
@@ -149,6 +154,21 @@ class TimerCard(QFrame):
         self._timer.start(1000)
         self.note_label.setText(f"Session #{session_id}")
         self._update_display()
+
+    def show_running(self, session):
+        """Show a session that is already running (started by auto mode, or recovered)."""
+        self.begin_active(session['id'], session['platform_id'], session['project_id'])
+        hrs = hours_between(session['started_at'], utc_now())
+        self._elapsed = int(hrs * 3600) if hrs else 0
+        self._update_display_no_increment()
+        idx = self.platform_combo.findData(session['platform_id'])
+        if idx >= 0:
+            self.platform_combo.setCurrentIndex(idx)
+        if session['source'] == 'auto':
+            self.note_label.setText(f"Session #{session['id']} - started automatically")
+
+    def set_auto_status(self, text):
+        self.auto_label.setText(text)
 
     def end_active(self):
         self.start_btn.setEnabled(True)
@@ -236,6 +256,7 @@ class TodayScreen(QWidget):
     """The default screen Nick looks at while working."""
 
     refresh_requested = pyqtSignal()
+    session_stopped = pyqtSignal(int)  # platform_id, when you press Stop
 
     def __init__(self, store: Store):
         super().__init__()
@@ -304,13 +325,15 @@ class TodayScreen(QWidget):
     def _on_stop(self):
         if self.timer_card._session_id is None:
             return
+        session_id = self.timer_card._session_id
+        platform_id = self.timer_card._current_platform_id
         dialog = ItemCountDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.store.stop_session(
-                self.timer_card._session_id,
-                item_count=dialog.count
-            )
-            self.timer_card.end_active()
+            self.store.stop_session(session_id, item_count=dialog.count)
+            if self.timer_card._session_id == session_id:
+                self.timer_card.end_active()
+            if platform_id:
+                self.session_stopped.emit(platform_id)
             self._refresh_money()
             self.refresh_requested.emit()
 

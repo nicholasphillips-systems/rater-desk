@@ -110,6 +110,14 @@ class TestFirstRun(unittest.TestCase):
         with Store(db_path) as s:
             self.assertEqual(len(s.get_all_platforms()), 12)
 
+    def test_empty_database_file_gets_the_starter_list(self):
+        from main import load_platform_list
+        db_path = fresh_db_path()
+        Store(db_path).close()
+        load_platform_list(db_path)
+        with Store(db_path) as s:
+            self.assertEqual(len(s.get_all_platforms()), 12)
+
     def test_existing_database_is_left_alone(self):
         from main import load_platform_list
         db_path = fresh_db_path()

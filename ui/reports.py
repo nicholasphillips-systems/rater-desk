@@ -10,8 +10,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
-from store import Store, cents_to_str, format_real_rate, hours_between, today_utc
+from store import Store, cents_to_str, format_real_rate, hours_between, today_utc, utc_now
 from ui.styles import header_font, body_font
+
+# A working platform with no session for this many days is listed as idle,
+# unless the platform sets its own idle_warn_days.
+DEFAULT_IDLE_WARN_DAYS = 7
 
 
 class ReportsScreen(QWidget):
@@ -152,8 +156,10 @@ class ReportsScreen(QWidget):
                 elif not sessions[0]['ended_at']:
                     # Still running session — not idle
                     pass
-                elif hours_between(sessions[0]['ended_at'], None) < 0:
-                    idle.append(plat)
+                else:
+                    since = hours_between(sessions[0]['ended_at'], utc_now()) or 0
+                    if since / 24 > (plat['idle_warn_days'] or DEFAULT_IDLE_WARN_DAYS):
+                        idle.append(plat)
 
         self.idle_table.setRowCount(len(idle))
         for i, plat in enumerate(idle):

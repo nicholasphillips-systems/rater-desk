@@ -1,14 +1,18 @@
 """Rater Desk — main entry point.
 
-QApplication lifecycle, QMainWindow with sidebar navbar (Today / Platforms / Plan / Money / Reports),
-system tray icon, close-to-tray, start at login, crash recovery on startup, reminders
-for long sessions. Runs on Linux and Windows; the OS-specific parts live in paths.py
+QApplication lifecycle, QMainWindow with sidebar navbar (Today / Platforms / Plan / Money /
+Reports / Auto), system tray icon, close-to-tray, start at login, crash recovery on
+startup, reminders for long sessions, and auto mode (timer from the focused window,
+updates from email). Runs on Linux and Windows; the OS-specific parts live in paths.py
 and autostart.py.
 """
 
+import datetime
+import functools
 import os
 import sys
 import subprocess
+import traceback
 
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QStackedWidget, QWidget, QHBoxLayout,
@@ -28,6 +32,10 @@ from ui.platforms import PlatformsScreen
 from ui.plan import PlanScreen
 from ui.money import MoneyScreen
 from ui.reports import ReportsScreen
+from ui.auto import AutoScreen
+from activity import ActivitySource
+from autotimer import AutoTimer
+from mailwatch import MailWatcher
 
 
 APP_NAME = paths.APP_NAME
@@ -35,6 +43,24 @@ APP_NAME = paths.APP_NAME
 ICON_PATH = paths.app_dir() / "assets" / ("icon.ico" if paths.IS_WINDOWS else "icon.svg")
 
 LONG_SESSION_MINUTES = 90
+AUTO_TICK_MS = 15 * 1000
+MAIL_CHECK_MS = 10 * 60 * 1000
+
+
+def guarded(method):
+    """For Qt slots: an exception escaping a slot aborts the whole app, so auto mode
+    logs its errors and carries on instead."""
+    @functools.wraps(method)
+    def wrapper(*args, **kwargs):
+        try:
+            return method(*args, **kwargs)
+        except Exception:
+            traceback.print_exc()
+    return wrapper
+
+
+def utc_now():
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 class MainWindow(QMainWindow):
@@ -48,6 +74,7 @@ class MainWindow(QMainWindow):
         self._setup_sidebar()
         self._setup_tray()
         self._setup_autostart()
+        self._setup_auto()
         self._check_crash_recovery()
         self._setup_long_session_timer()
 
@@ -87,10 +114,10 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(title_label)
 
         self.nav_buttons = {}
-        self.tab_names = ["today", "platforms", "plan", "money", "reports"]
+        self.tab_names = ["today", "platforms", "plan", "money", "reports", "auto"]
         self.tab_labels = {
             "today": "Today", "platforms": "Platforms",
-            "plan": "Plan", "money": "Money", "reports": "Reports",
+            "plan": "Plan", "money": "Money", "reports": "Reports", "auto": "Auto",
         }
 
         for name in self.tab_names:
@@ -121,12 +148,14 @@ class MainWindow(QMainWindow):
         self.plan_screen = PlanScreen(self.store)
         self.money_screen = MoneyScreen(self.store)
         self.reports_screen = ReportsScreen(self.store)
+        self.auto_screen = AutoScreen(self.store)
 
         self.stack.addWidget(self.today_screen)
         self.stack.addWidget(self.platforms_screen)
         self.stack.addWidget(self.plan_screen)
         self.stack.addWidget(self.money_screen)
         self.stack.addWidget(self.reports_screen)
+        self.stack.addWidget(self.auto_screen)
 
         # Connect signals
         self.today_screen.refresh_requested.connect(self._on_today_refresh)
@@ -142,7 +171,7 @@ class MainWindow(QMainWindow):
     def _switch_tab(self, name):
         index_map = {
             'today': 0, 'platforms': 1, 'plan': 2,
-            'money': 3, 'reports': 4,
+            'money': 3, 'reports': 4, 'auto': 5,
         }
         idx = index_map.get(name, 0)
         self.stack.setCurrentIndex(idx)
@@ -166,6 +195,8 @@ class MainWindow(QMainWindow):
             self.platforms_screen._refresh_platforms()
         elif name == "today":
             self.today_screen.refresh_all()
+        elif name == "auto":
+            self.auto_screen.refresh()
 
     def _setup_tray(self):
         self.tray = QSystemTrayIcon()
@@ -204,6 +235,124 @@ class MainWindow(QMainWindow):
         except OSError:
             pass
 
+    # ------------------------------------------------------------------
+    # Auto mode
+
+    def _setup_auto(self):
+        self.autotimer = AutoTimer(self.store, on_change=self._on_auto_change)
+        # Auto sessions left open by a crash end at the last input seen, before
+        # the recovery dialog asks about manual ones.
+        self.autotimer.recover()
+
+        self.activity = ActivitySource(self)
+        self.activity.focus_changed.connect(self._on_focus)
+        self.activity.input_seen.connect(self._on_input)
+        self.activity.lock_changed.connect(self._on_lock)
+        self._auto_available = self.activity.start()
+        self.autotimer.enabled = (self._auto_available
+                                  and self.store.get_setting("auto_timer", "1") == "1")
+        self.auto_screen.auto_timer_toggled.connect(self._on_auto_toggled)
+        self.today_screen.session_stopped.connect(self._on_stopped_by_hand)
+
+        self._auto_tick = QTimer(self)
+        self._auto_tick.timeout.connect(self._tick_auto)
+        self._auto_tick.start(AUTO_TICK_MS)
+        self._tick_auto()
+
+        self.mail = MailWatcher(self.store, self)
+        self.mail.finished.connect(self._on_mail_checked)
+        self.auto_screen.check_mail_requested.connect(self._check_mail)
+        self._mail_timer = QTimer(self)
+        self._mail_timer.timeout.connect(self._check_mail)
+        self._mail_timer.start(MAIL_CHECK_MS)
+        QTimer.singleShot(20 * 1000, self._check_mail)
+
+    @guarded
+    def _on_focus(self, title, app_class, when):
+        # Tracked even while off, so switching it on with a platform open starts it.
+        self.autotimer.focus(title, app_class, when)
+        self._show_auto_status()
+
+    @guarded
+    def _on_input(self, when):
+        self.autotimer.activity(when)
+
+    @guarded
+    def _on_lock(self, locked, when):
+        self.autotimer.lock(locked, when)
+        self._show_auto_status()
+
+    @guarded
+    def _tick_auto(self):
+        if self.autotimer.enabled:
+            self.autotimer.tick(utc_now())
+        self._show_auto_status()
+
+    def _show_auto_status(self):
+        if not self._auto_available:
+            text = f"Auto timer unavailable: {self.activity.why_unavailable}"
+        elif not self.autotimer.enabled:
+            text = "Auto timer off"
+        else:
+            text = f"Auto: {self.autotimer.status}"
+        self.auto_screen.set_timer_status(text)
+        self.today_screen.timer_card.set_auto_status(text)
+
+    @guarded
+    def _on_auto_toggled(self, on):
+        if self._auto_available:
+            self.autotimer.set_enabled(on, utc_now())
+        self._show_auto_status()
+
+    @guarded
+    def _on_stopped_by_hand(self, platform_id):
+        self.autotimer.stopped_by_hand(platform_id)
+        self._show_auto_status()
+
+    def _on_auto_change(self, event, session_id, platform_id, reason):
+        plat = self.store.get_platform(platform_id)
+        name = plat['name'] if plat else "Platform"
+        card = self.today_screen.timer_card
+        if event == "started":
+            session = self.store.get_session(session_id)
+            if session and card._session_id is None:
+                card.show_running(session)
+            self._notify(f"{name} timer started", "Started automatically. Stops when you leave.")
+        else:
+            if card._session_id == session_id:
+                card.end_active()
+            session = self.store.get_session(session_id)
+            if session and session['ended_at']:
+                mins = round(hours_between(session['started_at'], session['ended_at']) * 60)
+                self._notify(f"{name} timer stopped", f"{mins // 60}h {mins % 60:02d}m - {reason}")
+            self.today_screen.refresh_all()
+            self._on_today_refresh()
+
+    @guarded
+    def _check_mail(self):
+        if self.mail.check_now():
+            self.auto_screen.set_mail_busy(True)
+
+    @guarded
+    def _on_mail_checked(self, lines, errors):
+        self.auto_screen.set_mail_busy(False)
+        self.auto_screen.refresh()
+        if lines:
+            more = f" (+{len(lines) - 1} more on the Auto screen)" if len(lines) > 1 else ""
+            self._notify("Rater Desk: news from your email", lines[0] + more)
+            self.platforms_screen._refresh_platforms()
+            self.today_screen.refresh_all()
+            self._on_today_refresh()
+
+    def _notify(self, title, text):
+        if self.tray.isVisible():
+            self.tray.showMessage(title, text, QSystemTrayIcon.MessageIcon.Information, 5000)
+        elif paths.IS_LINUX:
+            try:
+                subprocess.Popen(["notify-send", "-a", APP_NAME, title, text])
+            except OSError:
+                pass
+
     def _check_crash_recovery(self):
         """On startup, check for work sessions that were left running and offer to recover them."""
         open_sessions = self.store.recover_sessions()
@@ -221,14 +370,7 @@ class MainWindow(QMainWindow):
             else:
                 # Re-show today screen to pick up the recovered session
                 self.today_screen.refresh_all()
-                self.today_screen.timer_card.set_display_from_session(
-                    open_sessions[0]['started_at']
-                )
-                self.today_screen.timer_card.begin_active(
-                    open_sessions[0]['id'],
-                    open_sessions[0].get('platform_id', 0) or 0,
-                    open_sessions[0].get('project_id', 0) or 0,
-                )
+                self.today_screen.timer_card.show_running(open_sessions[0])
 
     def _setup_long_session_timer(self):
         self._session_check_timer = QTimer()
@@ -240,7 +382,7 @@ class MainWindow(QMainWindow):
         current = self.store.recover_sessions()
         if current:
             session = current[0]
-            duration = hours_between(session['started_at'], None)
+            duration = hours_between(session['started_at'], utc_now().isoformat()) or 0
             if duration * 60 >= LONG_SESSION_MINUTES and not self._long_warned:
                 self._notify_long_session(session, duration)
                 self._long_warned = True
@@ -293,6 +435,11 @@ class MainWindow(QMainWindow):
             self.tray.hide()
 
     def _quit(self):
+        try:
+            self.autotimer.shutdown(utc_now())
+            self.activity.stop()
+        except Exception:
+            traceback.print_exc()
         self.store.close()
         QApplication.quit()
 
@@ -315,16 +462,28 @@ class MainWindow(QMainWindow):
 
 
 def load_platform_list(db_path, reseed=False):
-    """Fill a brand-new database with the starter platforms; --seed re-runs the seed."""
+    """Fill a database that has no platforms with the starter list; --seed re-runs the seed.
+
+    Checks for platforms rather than for the file: something that opens the
+    database before first launch leaves an empty file behind, and the app then
+    opened with no platforms at all.
+    """
     if reseed:
         try:
             from seed import seed  # the original list; left out of packaged builds
         except ImportError:
             from starter import seed
         seed(db_path)
-    elif not os.path.exists(db_path):
+    elif not _has_platforms(db_path):
         from starter import seed
         seed(db_path)
+
+
+def _has_platforms(db_path):
+    if not os.path.exists(db_path):
+        return False
+    with Store(db_path) as s:
+        return bool(s.get_all_platforms())
 
 
 def main():

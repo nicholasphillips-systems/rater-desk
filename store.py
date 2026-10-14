@@ -182,7 +182,8 @@ class Store:
             return
         valid_cols = {'name', 'login_url', 'status', 'advertises_rate_cents',
                       'payout_method', 'payout_notes', 'needs_vpn_off',
-                      'idle_warn_days', 'notes', 'sort_order', 'seeded_from'}
+                      'idle_warn_days', 'notes', 'sort_order', 'seeded_from',
+                      'match_words', 'email_domains'}
         cols = {k: v for k, v in fields.items() if k in valid_cols}
         if not cols:
             return
@@ -297,6 +298,15 @@ class Store:
         )
         self.conn.commit()
 
+    def find_open_task(self, platform_id, title):
+        """An unfinished setup task with this exact title on this platform."""
+        return self.conn.execute(
+            """SELECT * FROM setup_tasks
+               WHERE platform_id = ? AND title = ? AND status IN ('todo', 'doing')
+               ORDER BY id LIMIT 1""",
+            (platform_id, title)
+        ).fetchone()
+
     def get_due_setup_tasks(self, date_str=None):
         """Tasks that are due today or overdue (not done/skipped)."""
         if date_str is None:
@@ -314,8 +324,12 @@ class Store:
     # Work sessions / Timer
 
     def start_session(self, platform_id, project_id=None, rate_cents_per_hour=None,
-                      note=None):
-        """Start a work session. Returns session id."""
+                      note=None, started_at=None, source='manual'):
+        """Start a work session. Returns session id.
+
+        Auto mode passes started_at (back-dated to when you opened the platform)
+        and source='auto'.
+        """
         if rate_cents_per_hour is None:
             proj = self.get_project(project_id) if project_id else None
             if proj and proj['rate_cents_per_hour'] is not None:
@@ -323,21 +337,23 @@ class Store:
             else:
                 plat = self.get_platform(platform_id)
                 rate_cents_per_hour = plat['advertises_rate_cents'] if (plat and plat['advertises_rate_cents'] is not None) else 0
-        now = utc_now()
         row = self.conn.execute(
             """INSERT INTO work_sessions
-               (platform_id, project_id, started_at, rate_cents_per_hour, note)
-               VALUES (?, ?, ?, ?, ?)""",
-            (platform_id, project_id, now, rate_cents_per_hour, note)
+               (platform_id, project_id, started_at, rate_cents_per_hour, note, source)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (platform_id, project_id, started_at or utc_now(), rate_cents_per_hour, note,
+             source)
         )
         self.conn.commit()
         return row.lastrowid
 
-    def stop_session(self, session_id, item_count=None, note=None):
-        """Stop a work session, recording item_count (None if skipped)."""
-        now = utc_now()
+    def stop_session(self, session_id, item_count=None, note=None, ended_at=None):
+        """Stop a work session, recording item_count (None if skipped).
+
+        ended_at lets auto mode end it when you actually left, not when it noticed.
+        """
         updates = ["ended_at = ?"]
-        params = [now]
+        params = [ended_at or utc_now()]
         if note is not None:
             updates.append("note = ?")
             params.append(note)
@@ -369,6 +385,10 @@ class Store:
         )
         self.conn.commit()
 
+    def delete_session(self, session_id):
+        self.conn.execute("DELETE FROM work_sessions WHERE id = ?", (session_id,))
+        self.conn.commit()
+
     def get_session(self, session_id):
         return self.conn.execute(
             "SELECT * FROM work_sessions WHERE id = ?", (session_id,)
@@ -386,6 +406,40 @@ class Store:
         query += " ORDER BY started_at DESC LIMIT ?"
         params.append(limit)
         return self.conn.execute(query, params).fetchall()
+
+    # ------------------------------------------------------------------
+    # Detections (auto mode's log)
+
+    def add_detection(self, kind, summary, platform_id=None, change=None,
+                      happened_at=None, source_ref=None, quiet=False):
+        """Log something auto mode found. Returns the id, or None if source_ref was seen."""
+        try:
+            row = self.conn.execute(
+                """INSERT INTO detections
+                   (detected_at, happened_at, kind, platform_id, summary, change,
+                    quiet, source_ref)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (utc_now(), happened_at, kind, platform_id, summary, change,
+                 1 if quiet else 0, source_ref)
+            )
+        except sqlite3.IntegrityError:
+            return None
+        self.conn.commit()
+        return row.lastrowid
+
+    def has_detection(self, source_ref):
+        if not source_ref:
+            return False
+        return self.conn.execute(
+            "SELECT 1 FROM detections WHERE source_ref = ?", (source_ref,)
+        ).fetchone() is not None
+
+    def get_detections(self, limit=200, include_quiet=False):
+        query = "SELECT * FROM detections"
+        if not include_quiet:
+            query += " WHERE quiet = 0"
+        query += " ORDER BY COALESCE(happened_at, detected_at) DESC, id DESC LIMIT ?"
+        return self.conn.execute(query, (limit,)).fetchall()
 
     # ------------------------------------------------------------------
     # Payouts

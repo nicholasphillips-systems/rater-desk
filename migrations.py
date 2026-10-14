@@ -2,7 +2,7 @@ import sqlite3
 import os
 import datetime
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 MIGRATIONS = {
     1: """
@@ -95,6 +95,25 @@ CREATE TABLE blocks (
 CREATE TABLE settings (
     key             TEXT PRIMARY KEY,
     value           TEXT
+);
+""",
+    2: """
+-- Auto mode: sessions started by window detection, per-platform match overrides,
+-- and a log of what email detection found and changed.
+ALTER TABLE work_sessions ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';
+ALTER TABLE platforms ADD COLUMN match_words TEXT;
+ALTER TABLE platforms ADD COLUMN email_domains TEXT;
+
+CREATE TABLE detections (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    detected_at     TEXT NOT NULL,
+    happened_at     TEXT,
+    kind            TEXT NOT NULL,
+    platform_id     INTEGER REFERENCES platforms(id),
+    summary         TEXT NOT NULL,
+    change          TEXT,
+    quiet           INTEGER NOT NULL DEFAULT 0,
+    source_ref      TEXT UNIQUE
 );
 """,
 }
