@@ -253,12 +253,11 @@ class PlatformDetail(QTabWidget):
         plat = self.store.get_platform(self._current_platform_id)
         if not plat:
             return
-        items = self.overview_widget().layout()
-        labels = ["", ""]
-        for i in range(1, items.rows()):
-            lbl_widget = items.item(i, 1).widget()
-            key = items.item(i, 0).widget().text().rstrip(":")
-            self._set_overview_field(lbl_widget, key, plat)
+        form = self.overview_widget().layout()
+        for row in range(form.rowCount()):
+            key = form.itemAt(row, QFormLayout.ItemRole.LabelRole).widget().text().rstrip(":")
+            value = form.itemAt(row, QFormLayout.ItemRole.FieldRole).widget()
+            self._set_overview_field(value, key, plat)
 
     def overview_widget(self):
         return self.widget(0)
