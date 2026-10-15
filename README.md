@@ -1,6 +1,6 @@
 # Rater Desk
 
-**A desktop time and earnings tracker for AI raters and data annotators.**
+**A desktop time-tracking app for AI raters and data annotators.**
 
 Rater Desk helps freelancers track work across multiple AI rating, training, and
 annotation platforms. Keep platform accounts and projects organized, log work
