@@ -17,7 +17,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT license"></a>
 </p>
 
-![Money screen](docs/screenshots/money.png)
+![Today screen](docs/screenshots/today.png)
 
 ## Features
 
@@ -36,9 +36,9 @@
 
 ## Screenshots
 
-| Today | Platforms |
+| Money | Platforms |
 |---|---|
-| ![Today screen](docs/screenshots/today.png) | ![Platforms screen](docs/screenshots/platforms.png) |
+| ![Money screen](docs/screenshots/money.png) | ![Platforms screen](docs/screenshots/platforms.png) |
 
 ![Auto screen](docs/screenshots/auto.png)
 
