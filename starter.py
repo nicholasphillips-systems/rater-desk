@@ -1,10 +1,8 @@
-"""Starter list: the platforms a brand-new install opens with.
+"""Default platform records and setup tasks for new installations.
 
-The same twelve platforms as seed.py, carrying only what is true of the platform
-itself (sign-in page, advertised rate, payout method, sign-up steps). Nobody's
-account progress lives here, so this is the list that ships in packaged builds.
-
-Never invents rates, dates, or amounts. Unknown facts stay NULL.
+Includes platform URLs, reference rates, payout methods, and setup steps.
+Account progress is initialized separately for each installation. Unknown values
+are stored as NULL; platform details can be edited after initialization.
 """
 
 from store import Store, DB_PATH

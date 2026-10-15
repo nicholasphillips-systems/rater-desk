@@ -7,12 +7,12 @@ seconds and decides.
   - A platform's site in focus for SETTLE seconds starts its timer, back-dated to
     when you opened it.
   - Leaving every platform window for AWAY seconds stops it, ended at when you left.
-    A quick look at notes or Claude in between doesn't break the session.
+    Brief visits to other applications do not split the session.
   - Moving to another platform for SETTLE seconds switches the timer over.
   - No input for IDLE seconds, or locking the screen, stops it at your last input.
-  - A manual timer always wins: auto mode stands aside while one runs, and won't
+  - Manual timers take priority: auto mode pauses while one runs, and won't
     restart on a platform you stopped by hand until you leave it and come back.
-  - Sessions shorter than MIN_KEEP are thrown away as noise.
+  - Automatic sessions shorter than MIN_KEEP are discarded.
 
 Times are timezone-aware UTC datetimes; the store gets ISO strings.
 """
