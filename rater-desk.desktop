@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Rater Desk
-Comment=Time tracking and earnings management for AI evaluation work
+Comment=Track work hours, earnings, and projects across AI rating platforms
 Exec=/path/to/rater-desk/run.sh
 Icon=/path/to/rater-desk/assets/icon.svg
 Terminal=false

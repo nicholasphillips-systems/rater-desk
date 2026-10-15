@@ -1,11 +1,11 @@
 # Rater Desk
 
-**Time tracking and earnings management for AI evaluation and data annotation work.**
+**A desktop time and earnings tracker for AI raters and data annotators.**
 
-Rater Desk is a desktop application for freelancers working across AI rating,
-training, and annotation platforms. Manage platform accounts and projects, track
-work sessions, record payments and expenses, and plan your workweek. Compare
-recorded hourly earnings with advertised rates to see how your time is paying off.
+Rater Desk helps freelancers track work across multiple AI rating, training, and
+annotation platforms. Keep platform accounts and projects organized, log work
+hours and payments, and plan your week. Earnings reports show recorded pay per
+hour alongside each platform's advertised rate.
 
 Built with **Python, PyQt6, and SQLite** for **Windows and Linux**.
 
