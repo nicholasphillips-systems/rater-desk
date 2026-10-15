@@ -1,158 +1,101 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/icon.svg">
-    <img src="docs/icon-tile.svg" width="88" alt="">
-  </picture>
-</p>
+# Rater Desk
 
-<h1 align="center">Rater Desk</h1>
+**A desktop time-tracking app for AI raters and data annotators.**
 
-<p align="center">
-  A desktop app for keeping track of AI rating and training work across different platforms:<br>
-  sign-up steps, time worked, payouts, and what each platform actually pays per hour.
-</p>
+Rater Desk helps freelancers track work across multiple AI rating, training, and
+annotation platforms. Keep platform accounts and projects organized, log work
+hours and payments, and plan your week. Earnings reports show recorded pay per
+hour alongside each platform's advertised rate.
 
-<p align="center">
-  <a href="https://github.com/nicholasphillips-systems/rater-desk/actions/workflows/tests.yml"><img src="https://github.com/nicholasphillips-systems/rater-desk/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/nicholasphillips-systems/rater-desk/releases/latest"><img src="https://img.shields.io/github/v/release/nicholasphillips-systems/rater-desk" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/python-3.10%2B-3776AB" alt="Python 3.10+">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-555" alt="Windows and Linux">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-2ea44f" alt="MIT license"></a>
-</p>
+Built with **Python, PyQt6, and SQLite** for **Windows and Linux**.
 
-![Today screen](docs/screenshots/today.png)
+[![Tests](https://github.com/nicholasphillips-systems/rater-desk/actions/workflows/tests.yml/badge.svg)](https://github.com/nicholasphillips-systems/rater-desk/actions/workflows/tests.yml)
+[![Release](https://img.shields.io/github/v/release/nicholasphillips-systems/rater-desk)](https://github.com/nicholasphillips-systems/rater-desk/releases/latest)
+
+![Rater Desk's Today screen showing sample work sessions and a weekly schedule](docs/screenshots/today.png)
 
 ## Features
 
-- **Hourly pay:** see what each platform actually paid per hour, next to the rate it advertises.
-- **Timer:** start and stop it yourself, or let auto mode do it based on which browser tab you're in.
-- **Email:** can read platform and PayPal / Payoneer emails and log payouts and status changes for you.
-- **Setup steps:** keep track of where you are in each platform's sign-up.
-- **Weekly plan:** plan your work blocks and export them to your calendar (`.ics`).
-- **Local:** everything is saved in one file on your computer, with a backup every day.
+- **Platform management:** track account status, application progress, setup tasks,
+  project rates, and deadlines across multiple platforms.
+- **Time tracking:** start sessions manually or enable automatic tracking based on
+  the active browser window. Manual timers take priority over automatic tracking.
+- **Earnings and expenses:** record payouts, bonuses, and costs; compare recorded
+  base payments per tracked hour with each platform's advertised rate.
+- **Weekly planning:** schedule work blocks and export them as an `.ics` calendar file.
+- **Reports and exports:** review hours, earnings, expenses, deadlines, and inactive
+  platforms. Export payouts, costs, sessions, and scheduled blocks to CSV.
+- **Optional Gmail integration:** detect payment notices, account updates, and
+  setup reminders from recognized senders. Review detected changes in the app.
+- **Local storage and backups:** keep work records in a local SQLite database with
+  daily backups. No Rater Desk account or hosted service is required.
+- **Desktop integration:** system tray, startup at login, interrupted-session
+  recovery, and reminders after 90 minutes of tracking.
 
-## Download
+Automatic window tracking supports Windows and KDE Plasma. Manual tracking works
+on other Linux desktops. Gmail integration and automatic tracking can be enabled
+independently.
 
-**Windows:** download `RaterDesk.exe` from the [latest release](https://github.com/nicholasphillips-systems/rater-desk/releases/latest) and run it. No install or Python needed. Windows will warn you the first time because the file isn't signed: click **More info**, then **Run anyway**.
+## Installation
 
-**Linux:** run it from source (below).
+### Windows application
 
-## Screenshots
+Download `RaterDesk.exe` from the [latest release](https://github.com/nicholasphillips-systems/rater-desk/releases/latest).
+The standalone application does not require a Python installation. The executable
+is currently unsigned, so Windows may display a publisher warning.
 
-| Money | Platforms |
-|---|---|
-| ![Money screen](docs/screenshots/money.png) | ![Platforms screen](docs/screenshots/platforms.png) |
+### Run from source
 
-![Auto screen](docs/screenshots/auto.png)
-
-<sub>Screenshots use sample data.</sub>
-
-## Run from source
-
-Needs Python 3.10 or newer.
+Requires Python 3.10 or newer and a graphical desktop.
 
 ```bash
 git clone https://github.com/nicholasphillips-systems/rater-desk.git
 cd rater-desk
 python3 -m venv ~/.venvs/rater-desk
-~/.venvs/rater-desk/bin/pip install -r requirements.txt
-./run.sh
+~/.venvs/rater-desk/bin/python -m pip install -r requirements.txt
+~/.venvs/rater-desk/bin/python main.py
 ```
 
-To add it to your app menu, edit the two paths in `rater-desk.desktop` to point at where you cloned it.
+On Windows, use PowerShell after cloning the repository:
 
-## Auto mode
+```powershell
+py -m venv "$HOME\.venvs\rater-desk"
+& "$HOME\.venvs\rater-desk\Scripts\python.exe" -m pip install -r requirements.txt
+& "$HOME\.venvs\rater-desk\Scripts\python.exe" main.py
+```
 
-Turn it on from the **Auto** screen. The timer and the email check work separately, so you can use one without the other.
+The Linux launcher, `./run.sh`, uses `~/.venvs/rater-desk`. To add an application-menu
+entry, update the `Exec` and `Icon` paths in `rater-desk.desktop` for your checkout.
 
-**Timer**
+## Getting started
 
-- Starts once a platform's site has been in front for 45 seconds.
-- Stops 5 minutes after you leave all platform tabs, after 15 minutes with no mouse movement, or when you lock the screen.
-- Switching to another platform's tab switches the timer over.
-- A timer you start yourself always takes priority.
-- Sessions under 2 minutes are thrown out.
+1. Open **Platforms** to review the starter list, add platforms, and update account
+   status and project rates.
+2. Use **Today** to start and stop work sessions. Use **Plan** to schedule work blocks.
+3. Record payments and expenses in **Money**, then review totals in **Reports**.
+4. Enable the automatic timer or connect Gmail from **Auto** if you want those features.
 
-Works on Windows and KDE Plasma. Other Linux desktops aren't supported yet.
+Effective hourly earnings use recorded base payments divided by tracked hours in
+the selected period. Bonuses are tracked separately. Payment dates and work dates
+may fall in different periods, so this figure reflects the records selected.
 
-**Email**
+See the [user guide](docs/USAGE.md) for automation rules, data locations, and backups.
 
-Checks Gmail every 10 minutes for mail from the platforms and from PayPal / Payoneer. It only reads, so nothing gets marked as read. You'll need a Gmail [app password](https://myaccount.google.com/apppasswords), which is saved in your system keyring.
+## Screenshots
 
-| Email | What happens |
+| Earnings and expenses | Platform management |
 |---|---|
-| Payment from a platform | Payout added |
-| Account created / welcome | Status set to Account Made |
-| Accepted / approved | Status set to Active |
-| "Verify your phone", "finish your application" | Setup task added |
-| "Phone verified" | That task marked done |
-| Mail from a platform you don't have yet | Platform added |
-| Rejections, project invites, unknown payments | Just logged |
+| ![Money screen with sample earnings](docs/screenshots/money.png) | ![Platforms screen with sample platform records](docs/screenshots/platforms.png) |
 
-Statuses only move forward, and anything you've marked Blocked, Paused or Dead is left alone. Everything it changes is listed on the Auto screen.
+![Auto screen showing optional tracking and email settings](docs/screenshots/auto.png)
 
-## Good to know
-
-- Your data is saved in `data/rater-desk.sqlite3` (or your user folder on Windows). Set `RATER_DESK_DATA` to use a different folder.
-- A backup is made every day in `data/backups/`, and the last 30 are kept.
-- Closing the window keeps it running in the system tray. It can also start when you log in.
-- If the app closes while a timer is running, it asks what to do with it next time you open it.
-- After 90 minutes on one session, it reminds you to take a break.
-- New installs start with a list of twelve common platforms.
+Screenshots use sample data.
 
 ## Development
 
-### Tests
-
-```bash
-~/.venvs/rater-desk/bin/pip install pytest
-QT_QPA_PLATFORM=offscreen ~/.venvs/rater-desk/bin/python -m pytest
-```
-
-The tests run on Linux and Windows on every push.
-
-### Windows build
-
-From Linux (uses Wine):
-
-```bash
-./build-windows.sh        # -> dist/Rater Desk.exe
-```
-
-Or on a Windows PC with Python 3.10+, double-click `build-windows.bat`.
-
-### Project layout
-
-<details>
-<summary>Files</summary>
-
-```
-rater-desk/
-├── main.py            # App window, tray, startup
-├── paths.py           # Where data is saved on each OS
-├── autostart.py       # Start at login
-├── schema.sql         # Database tables
-├── migrations.py      # Updates older databases
-├── store.py           # Database reads and writes
-├── starter.py         # Platform list for new installs
-├── ics.py             # Calendar export
-├── backup.py          # Daily backup
-├── catalog.py         # How each platform is recognized (tab titles, email senders)
-├── activity.py        # Which window is in front
-├── autotimer.py       # Auto timer rules
-├── maildetect.py      # What each email means
-├── mailwatch.py       # Gmail check
-├── run.sh             # Launcher
-├── rater-desk.desktop # App menu entry
-├── rater-desk.spec    # Windows build recipe
-├── build-windows.sh   # Build the .exe from Linux
-├── build-windows.bat  # Build the .exe on Windows
-├── ui/                # Screens: Today, Platforms, Plan, Money, Reports, Auto
-└── tests/
-```
-
-</details>
+The [development guide](docs/DEVELOPMENT.md) covers the code layout, test commands,
+and Windows builds. GitHub Actions runs the test suite on Linux and Windows.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+[MIT](LICENSE).

@@ -253,7 +253,7 @@ class ItemCountDialog(QDialog):
 
 
 class TodayScreen(QWidget):
-    """The default screen Nick looks at while working."""
+    """Daily overview with the session timer, scheduled work, and setup tasks."""
 
     refresh_requested = pyqtSignal()
     session_stopped = pyqtSignal(int)  # platform_id, when you press Stop

@@ -6,8 +6,8 @@
 a = Analysis(
     ['main.py'],
     datas=[('assets', 'assets')],
-    # seed.py is the original owner's own platform list and notes; packaged
-    # builds start from starter.py instead.
+    # Exclude optional local seed data and test dependencies from the executable.
+    # New installations use the default platform records in starter.py.
     excludes=['seed', 'pytest'],
 )
 pyz = PYZ(a.pure)
