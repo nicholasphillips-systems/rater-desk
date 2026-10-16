@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/icon-tile.svg" alt="Rater Desk logo" width="144" height="144">
+</p>
+
 # Rater Desk
 
 **A desktop time-tracking app for AI raters and data annotators.**
